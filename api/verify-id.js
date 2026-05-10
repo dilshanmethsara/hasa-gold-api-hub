@@ -16,28 +16,22 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // ─── FREE FIRE (API Games Indonesia) ───
+    // ─── FREE FIRE (Public API) ───
     if (game === 'freefire') {
-      const merchantId = process.env.APIGAMES_MERCHANT_ID;
-      const secretKey = process.env.APIGAMES_SECRET_KEY;
-      
-      if (!merchantId || !secretKey) return res.status(500).json({ error: 'API Games credentials not configured on server' });
-
-      const signature = crypto.createHash('md5').update(merchantId + secretKey + playerId).digest('hex');
-      const apiUrl = `https://v1.apigames.id/merchant/${merchantId}/cek-username/freefire?user_id=${playerId}&signature=${signature}`;
-      
+      const apiUrl = `https://free-ff-api-src-5plp.onrender.com/api/v1/account?region=ID&uid=${playerId}`;
       const response = await fetch(apiUrl);
+      if (!response.ok) return res.status(404).json({ success: false, message: "Free Fire ID not found" });
+      
       const data = await response.json();
-
-      if (data.status === 1 && data.data && data.data.is_valid) {
+      if (data && data.basicInfo && data.basicInfo.nickname) {
         return res.status(200).json({
           success: true,
-          name: data.data.username,
+          name: data.basicInfo.nickname,
           game: "Free Fire",
           id: playerId
         });
       }
-      return res.status(404).json({ success: false, message: "Player ID not found" });
+      return res.status(404).json({ success: false, message: "Free Fire ID not found" });
     }
 
     // ─── MOBILE LEGENDS ───
