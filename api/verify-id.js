@@ -52,24 +52,47 @@ module.exports = async function handler(req, res) {
       const apiKey = process.env.RAPIDAPI_KEY;
       if (!apiKey) return res.status(500).json({ error: 'RAPIDAPI_KEY not configured on server' });
 
-      const apiUrl = `https://id-game-checker.p.rapidapi.com/blood-strike/${playerId}`;
-      const response = await fetch(apiUrl, {
-        headers: {
-          "x-rapidapi-host": "id-game-checker.p.rapidapi.com",
-          "x-rapidapi-key": apiKey
-        }
-      });
-      const data = await response.json();
+      // Try both common slugs: bloodstrike and blood-strike
+      const slugs = ['bloodstrike', 'blood-strike'];
+      let lastError = null;
 
-      if (data && (data.username || (data.data && data.data.username))) {
-        return res.status(200).json({
-          success: true,
-          name: data.username || data.data.username,
-          game: "Blood Strike",
-          id: playerId
-        });
+      for (const slug of slugs) {
+        try {
+          const apiUrl = `https://id-game-checker.p.rapidapi.com/${slug}/${playerId}`;
+          const response = await fetch(apiUrl, {
+            headers: {
+              "x-rapidapi-host": "id-game-checker.p.rapidapi.com",
+              "x-rapidapi-key": apiKey
+            }
+          });
+          
+          if (!response.ok) continue;
+
+          const data = await response.json();
+          console.log(`✅ Blood Strike [${slug}] Response:`, data);
+
+          // Handle different nested structures and name fields
+          const resultData = data.data || data;
+          const name = resultData.username || resultData.nickname || resultData.name || resultData.player_name;
+
+          if (name) {
+            return res.status(200).json({
+              success: true,
+              name: name,
+              game: "Blood Strike",
+              id: playerId
+            });
+          }
+        } catch (e) {
+          lastError = e;
+          console.error(`❌ Blood Strike [${slug}] error:`, e.message);
+        }
       }
-      return res.status(404).json({ success: false, message: "Blood Strike ID not found" });
+
+      return res.status(404).json({ 
+        success: false, 
+        message: "Blood Strike ID not found or API issue" 
+      });
     }
 
     return res.status(400).json({ error: 'Unsupported game' });
